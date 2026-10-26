@@ -1,0 +1,541 @@
+-- MEGA STORE ULTIMATE HUB - CLIENT-SIDE TEST BUILD
+-- Note: run only in an experience you own or have permission to test.
+-- Client-side changes cannot grant server-authoritative health, stamina, hunger,
+-- inventory, or teleport permissions. Those require changes in the game's server code.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Remove an older copy so re-running the script does not duplicate the UI.
+local old = playerGui:FindFirstChild("MegaStore_UltimateHub")
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "MegaStore_UltimateHub"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.DisplayOrder = 100
+gui.Parent = playerGui
+
+local accent = Color3.fromRGB(0, 230, 145)
+local dark = Color3.fromRGB(22, 22, 22)
+local panel = Color3.fromRGB(34, 34, 34)
+local red = Color3.fromRGB(255, 105, 105)
+
+local function corner(obj, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 6)
+    c.Parent = obj
+end
+
+local function make(className, props, parent)
+    local obj = Instance.new(className)
+    for k, v in pairs(props) do obj[k] = v end
+    obj.Parent = parent
+    return obj
+end
+
+local toggleMenu = make("TextButton", {
+    Name = "MenuToggle", Size = UDim2.fromOffset(90, 38),
+    Position = UDim2.new(0, 12, 0.18, 0),
+    BackgroundColor3 = dark, TextColor3 = accent,
+    Text = "OPEN HUB", TextSize = 14, Font = Enum.Font.SourceSansBold,
+    BorderSizePixel = 0, Active = true
+}, gui)
+corner(toggleMenu, 8)
+
+local main = make("Frame", {
+    Name = "MainFrame", Size = UDim2.new(0, 440, 0, 360),
+    Position = UDim2.new(0.5, -220, 0.5, -180),
+    BackgroundColor3 = dark, BorderSizePixel = 0, Visible = true,
+    Active = true
+}, gui)
+corner(main, 10)
+make("UISizeConstraint", {MinSize = Vector2.new(300, 280), MaxSize = Vector2.new(520, 500)}, main)
+
+local header = make("Frame", {
+    Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = Color3.fromRGB(28, 38, 35),
+    BorderSizePixel = 0
+}, main)
+corner(header, 10)
+make("TextLabel", {
+    Size = UDim2.new(1, -90, 1, 0), Position = UDim2.fromOffset(12, 0),
+    BackgroundTransparency = 1, Text = "MEGA STORE • TEST HUB",
+    TextColor3 = accent, Font = Enum.Font.SourceSansBold, TextSize = 17,
+    TextXAlignment = Enum.TextXAlignment.Left
+}, header)
+
+local close = make("TextButton", {
+    Size = UDim2.fromOffset(30, 28), Position = UDim2.new(1, -36, 0, 7),
+    BackgroundColor3 = Color3.fromRGB(170, 55, 55), Text = "X",
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.SourceSansBold,
+    TextSize = 15, BorderSizePixel = 0
+}, header)
+corner(close, 6)
+
+local sidebar = make("Frame", {
+    Position = UDim2.fromOffset(0, 42), Size = UDim2.new(0, 112, 1, -42),
+    BackgroundColor3 = Color3.fromRGB(26, 26, 26), BorderSizePixel = 0
+}, main)
+local content = make("Frame", {
+    Position = UDim2.new(0, 112, 0, 42), Size = UDim2.new(1, -112, 1, -42),
+    BackgroundTransparency = 1
+}, main)
+
+local pages, tabButtons = {}, {}
+local function createPage(name)
+    local button = make("TextButton", {
+        Size = UDim2.new(1, -10, 0, 36), BackgroundColor3 = panel,
+        Text = name, TextColor3 = Color3.new(1,1,1),
+        Font = Enum.Font.SourceSansBold, TextSize = 14, BorderSizePixel = 0
+    }, sidebar)
+    button.Position = UDim2.fromOffset(5, 5 + (#tabButtons * 41))
+    corner(button, 6)
+    local page = make("ScrollingFrame", {
+        Name = name .. "Page", Position = UDim2.fromOffset(8, 8),
+        Size = UDim2.new(1, -16, 1, -16), BackgroundTransparency = 1,
+        BorderSizePixel = 0, ScrollBarThickness = 5, CanvasSize = UDim2.new(),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, Visible = false
+    }, content)
+    make("UIListLayout", {
+        Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder
+    }, page)
+    pages[name] = page
+    tabButtons[#tabButtons + 1] = {button = button, page = page}
+    button.Activated:Connect(function()
+        for _, item in ipairs(tabButtons) do
+            item.page.Visible = false
+            item.button.BackgroundColor3 = panel
+            item.button.TextColor3 = Color3.new(1,1,1)
+        end
+        page.Visible = true
+        button.BackgroundColor3 = accent
+        button.TextColor3 = dark
+    end)
+    return page
+end
+
+local function label(parent, text, height)
+    return make("TextLabel", {
+        Size = UDim2.new(1, -4, 0, height or 32), BackgroundColor3 = panel,
+        BackgroundTransparency = 0.15, Text = text, TextColor3 = Color3.new(1,1,1),
+        Font = Enum.Font.SourceSans, TextSize = 14, TextWrapped = true,
+        BorderSizePixel = 0
+    }, parent)
+end
+
+local function button(parent, text, callback)
+    local b = make("TextButton", {
+        Size = UDim2.new(1, -4, 0, 36), BackgroundColor3 = panel,
+        Text = text, TextColor3 = Color3.new(1,1,1),
+        Font = Enum.Font.SourceSansBold, TextSize = 14, BorderSizePixel = 0
+    }, parent)
+    corner(b, 6)
+    b.Activated:Connect(callback)
+    return b
+end
+
+local function toggle(parent, text, callback)
+    local state = false
+    local b = button(parent, text .. "  [OFF]", function()
+        state = not state
+        b.Text = text .. (state and "  [ON]" or "  [OFF]")
+        b.BackgroundColor3 = state and Color3.fromRGB(35, 85, 60) or panel
+        callback(state)
+    end)
+    return function(value)
+        state = value
+        b.Text = text .. (state and "  [ON]" or "  [OFF]")
+        b.BackgroundColor3 = state and Color3.fromRGB(35, 85, 60) or panel
+        callback(state)
+    end
+end
+
+local home = createPage("Main")
+local movement = createPage("Movement")
+local tp = createPage("TP")
+local esp = createPage("ESP")
+local items = createPage("TP Items")
+local aim = createPage("Aimbot")
+tabButtons[1].button.BackgroundColor3 = accent
+tabButtons[1].button.TextColor3 = dark
+home.Visible = true
+
+label(home, "Welcome, " .. player.DisplayName .. "  (@" .. player.Name .. ")", 46)
+label(home, "Client-side test controls. Server-owned stats and game rules cannot be changed reliably from a client executor.", 68)
+label(home, "Movement controls below are local character controls. Use only where you have permission to test.", 60)
+
+-- Keep original movement values and restore them when the panel is disabled or removed.
+local walkSpeed = 16
+local jumpPower = 50
+local saved = {}
+local noClip = false
+local fly = false
+local flySpeed = 45
+local upHeld, downHeld = false, false
+local connections = {}
+local currentCharacter, currentHumanoid, currentRoot
+local originalCollisions = {}
+
+local function bindCharacter(char)
+    currentCharacter = char
+    currentHumanoid = char:WaitForChild("Humanoid", 8)
+    currentRoot = char:WaitForChild("HumanoidRootPart", 8)
+    originalCollisions = {}
+    if currentHumanoid then
+        saved.walkSpeed = currentHumanoid.WalkSpeed
+        saved.jumpPower = currentHumanoid.JumpPower
+        saved.useJumpPower = currentHumanoid.UseJumpPower
+    end
+end
+if player.Character then task.spawn(bindCharacter, player.Character) end
+table.insert(connections, player.CharacterAdded:Connect(bindCharacter))
+
+local function applyMovement()
+    if currentHumanoid and currentHumanoid.Parent then
+        currentHumanoid.WalkSpeed = walkSpeed
+        currentHumanoid.UseJumpPower = true
+        currentHumanoid.JumpPower = jumpPower
+    end
+end
+
+local speedLabel = label(movement, "Walk speed: 16", 28)
+local speedRow = make("Frame", {Size = UDim2.new(1, -4, 0, 38), BackgroundTransparency = 1}, movement)
+local speedMinus = button(speedRow, "-5", function()
+    walkSpeed = math.max(16, walkSpeed - 5)
+    speedLabel.Text = "Walk speed: " .. walkSpeed
+    applyMovement()
+end)
+speedMinus.Size = UDim2.new(0.48, 0, 1, 0)
+local speedPlus = button(speedRow, "+5", function()
+    walkSpeed = math.min(100, walkSpeed + 5)
+    speedLabel.Text = "Walk speed: " .. walkSpeed
+    applyMovement()
+end)
+speedPlus.Position = UDim2.new(0.52, 0, 0, 0)
+speedPlus.Size = UDim2.new(0.48, 0, 1, 0)
+
+local jumpLabel = label(movement, "Jump power: 50", 28)
+local jumpRow = make("Frame", {Size = UDim2.new(1, -4, 0, 38), BackgroundTransparency = 1}, movement)
+local jumpMinus = button(jumpRow, "-10", function()
+    jumpPower = math.max(50, jumpPower - 10)
+    jumpLabel.Text = "Jump power: " .. jumpPower
+    applyMovement()
+end)
+jumpMinus.Size = UDim2.new(0.48, 0, 1, 0)
+local jumpPlus = button(jumpRow, "+10", function()
+    jumpPower = math.min(200, jumpPower + 10)
+    jumpLabel.Text = "Jump power: " .. jumpPower
+    applyMovement()
+end)
+jumpPlus.Position = UDim2.new(0.52, 0, 0, 0)
+jumpPlus.Size = UDim2.new(0.48, 0, 1, 0)
+
+toggle(movement, "NoClip (client-side)", function(on)
+    noClip = on
+    if not on and currentCharacter then
+        for part, oldValue in pairs(originalCollisions) do
+            if part and part.Parent then part.CanCollide = oldValue end
+        end
+        originalCollisions = {}
+    end
+end)
+
+local flyToggle
+flyToggle = toggle(movement, "Fly (mobile buttons / Space)", function(on)
+    fly = on
+    if currentHumanoid then
+        currentHumanoid.PlatformStand = on
+        if not on then
+            if currentRoot then
+                local v = currentRoot.AssemblyLinearVelocity
+                currentRoot.AssemblyLinearVelocity = Vector3.new(v.X, 0, v.Z)
+            end
+            currentHumanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+    end
+end)
+
+local flyControls = make("Frame", {Size = UDim2.new(1, -4, 0, 42), BackgroundTransparency = 1}, movement)
+local upButton = button(flyControls, "UP ▲", function() end)
+upButton.Size = UDim2.new(0.48, 0, 1, 0)
+local downButton = button(flyControls, "DOWN ▼", function() end)
+downButton.Position = UDim2.new(0.52, 0, 0, 0)
+downButton.Size = UDim2.new(0.48, 0, 1, 0)
+upButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then upHeld = true end
+end)
+upButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then upHeld = false end
+end)
+downButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then downHeld = true end
+end)
+downButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then downHeld = false end
+end)
+label(movement, "Note: speed, jump, noclip and flight are client-side and may be overridden by the game server.", 54)
+button(movement, "RESET MOVEMENT", function()
+    walkSpeed = saved.walkSpeed or 16
+    jumpPower = saved.jumpPower or 50
+    speedLabel.Text = "Walk speed: " .. walkSpeed
+    jumpLabel.Text = "Jump power: " .. jumpPower
+    noClip = false
+    fly = false
+    upHeld, downHeld = false, false
+    if currentCharacter then
+        for part, oldValue in pairs(originalCollisions) do
+            if part and part.Parent then part.CanCollide = oldValue end
+        end
+    end
+    originalCollisions = {}
+    if currentHumanoid and currentHumanoid.Parent then
+        currentHumanoid.PlatformStand = false
+        currentHumanoid.WalkSpeed = walkSpeed
+        currentHumanoid.UseJumpPower = saved.useJumpPower ~= false
+        currentHumanoid.JumpPower = jumpPower
+        currentHumanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+    -- Synchronize the visible toggle labels with the reset state.
+    for _, child in ipairs(movement:GetChildren()) do
+        if child:IsA("TextButton") then
+            if child.Text:find("NoClip", 1, true) then
+                child.Text = "NoClip (client-side)  [OFF]"
+                child.BackgroundColor3 = panel
+            elseif child.Text:find("Fly", 1, true) then
+                child.Text = "Fly (mobile buttons / Space)  [OFF]"
+                child.BackgroundColor3 = panel
+            end
+        end
+    end
+end)
+
+-- Added test tools for YOUR OWN Roblox Studio experience.
+-- Tags: TestDestination, TestItem, TestTarget.
+-- TP requires the matching server RemoteFunction shown in the separate server file.
+local CollectionService = game:GetService("CollectionService")
+local testRemote = game:GetService("ReplicatedStorage"):FindFirstChild("TestToolsRemote")
+local espEnabled = false
+local aimEnabled = false
+local targetHighlights = {}
+local aimConnection
+
+local function objectPosition(obj)
+    if obj:IsA("BasePart") then return obj.Position end
+    if obj:IsA("Model") then
+        local part = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart", true)
+        return part and part.Position
+    end
+    return nil
+end
+
+local function nearestTagged(tag)
+    local root = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    local best, bestDistance = nil, math.huge
+    for _, obj in ipairs(CollectionService:GetTagged(tag)) do
+        if obj:IsDescendantOf(Workspace) and not (currentCharacter and obj:IsDescendantOf(currentCharacter)) then
+            local pos = objectPosition(obj)
+            if pos then
+                local distance = (pos - root.Position).Magnitude
+                if distance < bestDistance then best, bestDistance = obj, distance end
+            end
+        end
+    end
+    return best
+end
+
+local function requestTestTeleport(tag, action, description)
+    testRemote = game:GetService("ReplicatedStorage"):FindFirstChild("TestToolsRemote")
+    if not testRemote or not testRemote:IsA("RemoteFunction") then
+        label(tp, "TP requires TestToolsRemote + server script in your own Roblox Studio game.", 56)
+        return
+    end
+    local target = nearestTagged(tag)
+    if not target then
+        label(action == "TeleportItem" and items or tp, "No nearby object tagged " .. tag .. " was found.", 40)
+        return
+    end
+    task.spawn(function()
+        local ok, accepted, message = pcall(function()
+            return testRemote:InvokeServer(action, target)
+        end)
+        local page = action == "TeleportItem" and items or tp
+        label(page, ok and (accepted and (description .. ": success") or (description .. ": " .. tostring(message))) or ("Request failed: " .. tostring(accepted)), 40)
+    end)
+end
+
+label(tp, "Teleport to the nearest approved destination in your own Studio game.", 48)
+button(tp, "TP: Nearest destination", function()
+    requestTestTeleport("TestDestination", "TeleportDestination", "Teleport")
+end)
+
+label(items, "Teleport to the nearest tagged test item in your own Studio game.", 48)
+button(items, "TP: Nearest item", function()
+    requestTestTeleport("TestItem", "TeleportItem", "Item teleport")
+end)
+
+local function clearTargetHighlights()
+    for obj, h in pairs(targetHighlights) do
+        if h then h:Destroy() end
+        targetHighlights[obj] = nil
+    end
+end
+
+local function updateTargetHighlights()
+    if not espEnabled then clearTargetHighlights() return end
+    local seen = {}
+    for _, obj in ipairs(CollectionService:GetTagged("TestTarget")) do
+        if obj:IsDescendantOf(Workspace) then
+            seen[obj] = true
+            if not targetHighlights[obj] then
+                local h = Instance.new("Highlight")
+                h.Name = "TestTargetHighlight"
+                h.Adornee = obj
+                h.FillTransparency = 0.75
+                h.OutlineTransparency = 0
+                h.Parent = gui
+                targetHighlights[obj] = h
+            end
+        end
+    end
+    for obj, h in pairs(targetHighlights) do
+        if not seen[obj] then h:Destroy() targetHighlights[obj] = nil end
+    end
+end
+
+label(esp, "ESP highlights NPC test targets tagged TestTarget in your own Studio game.", 52)
+toggle(esp, "ESP: Test NPCs", function(on)
+    espEnabled = on
+    updateTargetHighlights()
+end)
+
+local function closestTaggedTarget()
+    local camera = Workspace.CurrentCamera
+    if not camera then return nil end
+    local center = camera.ViewportSize / 2
+    local bestPart, bestScore = nil, 170
+    for _, model in ipairs(CollectionService:GetTagged("TestTarget")) do
+        if model:IsA("Model") and model:IsDescendantOf(Workspace) then
+            local hum = model:FindFirstChildOfClass("Humanoid")
+            local part = model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart")
+            if hum and hum.Health > 0 and part then
+                local screen, visible = camera:WorldToViewportPoint(part.Position)
+                if visible and screen.Z > 0 then
+                    local score = (Vector2.new(screen.X, screen.Y) - center).Magnitude
+                    if score < bestScore then bestScore, bestPart = score, part end
+                end
+            end
+        end
+    end
+    return bestPart
+end
+
+label(aim, "Aim assist only targets tagged NPC training dummies, not other players.", 54)
+toggle(aim, "Aim Assist: Test NPCs", function(on)
+    aimEnabled = on
+    if on and not aimConnection then
+        aimConnection = RunService.RenderStepped:Connect(function()
+            if not aimEnabled then return end
+            local camera = Workspace.CurrentCamera
+            local target = closestTaggedTarget()
+            if camera and target then
+                camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(camera.CFrame.Position, target.Position), 0.12)
+            end
+        end)
+    elseif not on and aimConnection then
+        aimConnection:Disconnect()
+        aimConnection = nil
+    end
+end)
+
+table.insert(connections, RunService.RenderStepped:Connect(function()
+    if not currentCharacter or not currentCharacter.Parent then return end
+    currentHumanoid = currentCharacter:FindFirstChildOfClass("Humanoid")
+    currentRoot = currentCharacter:FindFirstChild("HumanoidRootPart")
+    if not currentHumanoid or not currentRoot then return end
+
+    if fly then
+        currentHumanoid.PlatformStand = true
+        local camera = Workspace.CurrentCamera
+        local direction = currentHumanoid.MoveDirection
+        local velocity = direction * flySpeed
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) or upHeld then
+            velocity += Vector3.new(0, flySpeed, 0)
+        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or downHeld then
+            velocity += Vector3.new(0, -flySpeed, 0)
+        end
+        currentRoot.AssemblyLinearVelocity = velocity
+    end
+
+    if noClip then
+        for _, part in ipairs(currentCharacter:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if originalCollisions[part] == nil then originalCollisions[part] = part.CanCollide end
+                part.CanCollide = false
+            end
+        end
+    end
+end))
+
+local function restore()
+    noClip, fly, upHeld, downHeld = false, false, false, false
+    if currentCharacter then
+        for part, oldValue in pairs(originalCollisions) do
+            if part and part.Parent then part.CanCollide = oldValue end
+        end
+    end
+    if currentHumanoid and currentHumanoid.Parent then
+        currentHumanoid.PlatformStand = false
+        if saved.walkSpeed then currentHumanoid.WalkSpeed = saved.walkSpeed end
+        if saved.jumpPower then currentHumanoid.JumpPower = saved.jumpPower end
+        if saved.useJumpPower ~= nil then currentHumanoid.UseJumpPower = saved.useJumpPower end
+        currentHumanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+    if aimConnection then pcall(function() aimConnection:Disconnect() end) aimConnection = nil end
+    aimEnabled = false
+    espEnabled = false
+    clearTargetHighlights()
+    for _, conn in ipairs(connections) do pcall(function() conn:Disconnect() end) end
+end
+
+toggleMenu.Activated:Connect(function()
+    main.Visible = not main.Visible
+    toggleMenu.Text = main.Visible and "HIDE HUB" or "OPEN HUB"
+end)
+close.Activated:Connect(function()
+    restore()
+    gui:Destroy()
+end)
+
+-- Dragging support for touch and mouse.
+do
+    local dragging, dragInput, dragStart, startPos
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = main.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    header.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    table.insert(connections, UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            local delta = input.Position - dragStart
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end))
+end
